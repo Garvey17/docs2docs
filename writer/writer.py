@@ -3,8 +3,8 @@ from typing import Literal
 from organiser.schema import ClassifiedContent, OrganisedDocs
 from config.config import settings
 import logging
-from schema import DocSection
-from critic import review_draft
+from writer.schema import DocSection
+from writer.critic import review_draft
 
 logging.basicConfig(
     level="INFO"

@@ -3,7 +3,7 @@ import json
 
 from config.config import settings
 
-from schema import CriticFeedback
+from writer.schema import CriticFeedback
 
 # logging.basicConfig(
 #     level="INFO"

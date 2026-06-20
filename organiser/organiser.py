@@ -5,7 +5,7 @@ from config.config import settings
 import logging
 from typing import Literal
 from crawler.schema import RawPage
-from schema import OrganisedDocs, ClassifiedContent
+from organiser.schema import OrganisedDocs, ClassifiedContent
 
 logging.basicConfig(
     level="INFO"

@@ -1,4 +1,4 @@
-from crawler.crawler import get_html_then_cache
+from crawler.crawler import run_crawler_sync
 from organiser.organiser import organise
 from writer.writer import write_section
 from services.output_service import render
@@ -14,7 +14,9 @@ logger = logging.getLogger(__name__)
 
 async def run_pipeline(url: str , package_name) -> str:
     #crawler agent
-    crawled_pages = await get_html_then_cache(url)
+    loop = asyncio.get_event_loop()
+    crawled_pages = await loop.run_in_executor(None, run_crawler_sync, url)
+    logger.info(f'Crawl process complete with {len(crawled_pages)} pages')
     logger.info(f'Crawl process complete with {len(crawled_pages)} pages')
 
     #organiser agent

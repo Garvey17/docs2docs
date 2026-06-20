@@ -3,8 +3,9 @@ import asyncio
 from urllib.parse import urlparse
 import logging
 from datetime import datetime
-from schema import RawPage
-from utils import score_url_path, get_html_title
+from crawler.schema import RawPage
+from crawler.utils import score_url_path, get_html_title
+import concurrent.futures
 
 
 logging.basicConfig(
@@ -62,6 +63,9 @@ def is_valid_doc_link(url:str, base_domain:str) -> bool:
         if path in {"", "/"}:
             return False
         
+        path_parts = [p for p in path.split("/") if p]
+        if len(path_parts) == 0:
+            return False
         #ignore fragments
         if parsed.fragment:
             return False
@@ -99,6 +103,7 @@ async def discover_doc_links(url: str) -> list[str]:
                 """
             () => {
                 const selectors = [
+                    // Sidebar/nav patterns (existing)
                     'nav a',
                     'aside a',
                     '[role="navigation"] a',
@@ -107,8 +112,28 @@ async def discover_doc_links(url: str) -> list[str]:
                     '.navigation a',
                     '.nav a',
                     '.toc a',
-                    '.docs-sidebar a'
-                ];
+                    '.docs-sidebar a',
+
+                    // Homepage card/grid patterns
+                    '[class*="card"] a',
+                    '[class*="grid"] a',
+                    '[class*="tile"] a',
+                    '[class*="feature"] a',
+
+                    // Main content doc links (homepage indexes)
+                    'main a',
+                    'article a',
+                    '[role="main"] a',
+
+                    // Common doc framework homepage patterns
+                    '.DocSearch-content a',
+                    '.md-content a',        // MkDocs Material
+                    '.content a',           // Generic
+                    '.docs-content a',
+                    '[class*="index"] a',   // Index/landing pages
+                    '[class*="landing"] a',
+                    '[class*="overview"] a',
+                ]
 
                 const urls = new Set();
 
@@ -204,20 +229,18 @@ async def get_html_then_cache(url: str) -> list[RawPage]:
         finally:
             await browser.close()   
 
-pages = asyncio.run(get_html_then_cache(
-    "https://expressjs.com/en/5x/starter/hello-world/"
-))
-
-print(f"Pages fetched: {len(pages)}")
-
-for page in pages[:3]:
-    print("-" * 50)
-    print(page.title)
-    print(page.url)
-    print(f"HTML length: {len(page.html)}")
-
-# asyncio.run(get_html_then_cache("https://portfolioadebola.netlify.app/"))      
-             
 
 
-# print(asyncio.run(discover_doc_links("https://docs.crawl4ai.com/"))) #for testing
+def run_crawler_sync(url: str):
+    """Runs the async crawler in a separate thread with its own event loop"""
+    def _run():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(get_html_then_cache(url))
+        finally:
+            loop.close()
+    
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(_run)
+        return future.result()

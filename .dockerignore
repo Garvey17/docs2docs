@@ -1,0 +1,14 @@
+```text
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+.git/
+.gitignore
+.env
+node_modules/
+playwright-report/
+test-results/
+```

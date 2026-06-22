@@ -86,16 +86,18 @@ async def discover_doc_links(url: str) -> list[str]:
     async with async_playwright() as p:
         #Starts a new browser instance with chromium
 
-        browser = await p.chromium.launch(headless=True)
+        browser = await p.chromium.launch(headless=True,
+                                          args=["--no-sandbox", "--disable-setuid-sandbox"]
+                                          )
 
         try:
             page = await browser.new_page()
 
-            await page.goto(
-                url,
-                wait_until="domcontentloaded",
-                timeout=60000
-            )
+            await page.goto(url, wait_until="commit", timeout=30000)
+            try:
+                await page.wait_for_selector("main, article, .content, nav", timeout=10000)
+            except Exception:
+                logger.warning(f"No main content selector found on {url}, proceeding anyway")
 
             base_domain = urlparse(page.url).netloc
 
@@ -180,7 +182,9 @@ async def get_html_then_cache(url: str) -> list[RawPage]:
     results: list[RawPage] = []
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = await p.chromium.launch(headless=True,
+                                          args=["--no-sandbox", "--disable-setuid-sandbox"]
+                                          )
 
         try:
             page = await browser.new_page()
@@ -194,24 +198,24 @@ async def get_html_then_cache(url: str) -> list[RawPage]:
                     )
                 else:
                     try:
-                        await page.goto(
-                            link,
-                            wait_until="domcontentloaded",
-                            timeout=14000,
-                        )
-
+                        await page.goto(url, wait_until="commit", timeout=30000)
+                        try:
+                            await page.wait_for_selector("main, article, .content, nav", timeout=10000)
+                        except Exception:
+                            logger.warning(f"No main content selector found on {url}, proceeding anyway")
                         html = await page.content()
 
                         page_cache_path.write_text(
                             html,
                             encoding="utf-8",
                         )
-
                     except Exception as e:
                         logger.error(
                             f"Failed to fetch {link}: {e}"
                         )
                         continue
+
+                    await asyncio.sleep(1)
 
                 title = get_html_title(html, link)
 

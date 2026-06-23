@@ -54,6 +54,8 @@ def find_content_container(soup: BeautifulSoup):
     return None
 
 def extract_clean_text(html: str) -> str:
+    if not html or not html.strip():
+        return ""
     soup = BeautifulSoup(html, "lxml")
 
     noise_tags = ["script", "style", "nav", "footer", "header", "aside"]
@@ -62,10 +64,10 @@ def extract_clean_text(html: str) -> str:
             element.decompose()
 
     #main tag check
-    container = find_content_container(soup) or soup.find("body")
+    container = find_content_container(soup) or soup.find("body") or soup
     text = container.get_text(separator="\n", strip=True)
-    text = re.sub(r"\n{3,}", "\n\n", text)
-    return text
+    return re.sub(r"\n{3,}", "\n\n", text)
+
     
 
 SYSTEM_PROMPT = """

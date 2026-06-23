@@ -105,7 +105,6 @@ async def discover_doc_links(url: str) -> list[str]:
                 """
             () => {
                 const selectors = [
-                    // Sidebar/nav patterns (existing)
                     'nav a',
                     'aside a',
                     '[role="navigation"] a',
@@ -115,33 +114,15 @@ async def discover_doc_links(url: str) -> list[str]:
                     '.nav a',
                     '.toc a',
                     '.docs-sidebar a',
-
-                    // Homepage card/grid patterns
-                    '[class*="card"] a',
-                    '[class*="grid"] a',
-                    '[class*="tile"] a',
-                    '[class*="feature"] a',
-
-                    // Main content doc links (homepage indexes)
-                    'main a',
-                    'article a',
-                    '[role="main"] a',
-
-                    // Common doc framework homepage patterns
-                    '.DocSearch-content a',
-                    '.md-content a',        // MkDocs Material
-                    '.content a',           // Generic
-                    '.docs-content a',
-                    '[class*="index"] a',   // Index/landing pages
-                    '[class*="landing"] a',
-                    '[class*="overview"] a',
+                    'footer a',
+                    '[role="contentinfo"] a',
                 ]
 
                 const urls = new Set();
 
                 for (const selector of selectors) {
                     document.querySelectorAll(selector).forEach(link => {
-                        if (link.href) {
+                        if (link.href && link.href.startsWith('http')) {
                             urls.add(link.href);
                         }
                     });
@@ -182,56 +163,44 @@ async def get_html_then_cache(url: str) -> list[RawPage]:
     results: list[RawPage] = []
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True,
-                                          args=["--no-sandbox", "--disable-setuid-sandbox"]
-                                          )
+        browser = await p.chromium.launch(
+            headless=True,
+            args=["--no-sandbox", "--disable-setuid-sandbox"]
+        )
 
         try:
-            page = await browser.new_page()
-
             for link in links:
                 page_cache_path = cache_path(link)
 
                 if page_cache_path.exists():
-                    html = page_cache_path.read_text(
-                        encoding="utf-8"
-                    )
+                    html = page_cache_path.read_text(encoding="utf-8")
                 else:
+                    context = await browser.new_context()
+                    page = await context.new_page()
                     try:
-                        await page.goto(url, wait_until="commit", timeout=30000)
-                        try:
-                            await page.wait_for_selector("main, article, .content, nav", timeout=10000)
-                        except Exception:
-                            logger.warning(f"No main content selector found on {url}, proceeding anyway")
+                        await page.goto(link, wait_until="commit", timeout=30000)
+                        await asyncio.sleep(2)
                         html = await page.content()
-
-                        page_cache_path.write_text(
-                            html,
-                            encoding="utf-8",
-                        )
+                        page_cache_path.write_text(html, encoding="utf-8")
                     except Exception as e:
-                        logger.error(
-                            f"Failed to fetch {link}: {e}"
-                        )
+                        logger.error(f"Failed to fetch {link}: {e}")
+                        await asyncio.sleep(1)
                         continue
-
-                    await asyncio.sleep(1)
+                    finally:
+                        await context.close()
 
                 title = get_html_title(html, link)
-
-                results.append(
-                    RawPage(
-                        url=link,
-                        title=title,
-                        html=html,
-                        fetched_at=datetime.now(),
-                    )
-                )
+                results.append(RawPage(
+                    url=link,
+                    title=title,
+                    html=html,
+                    fetched_at=datetime.now(),
+                ))
+                await asyncio.sleep(1)
 
             return results
-
         finally:
-            await browser.close()   
+            await browser.close()
 
 
 

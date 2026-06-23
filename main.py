@@ -70,13 +70,19 @@ async def healthcheck():
         "version": "1.0.0"
     }
 
+pipeline_running = False
+
 @app.post('/generate', response_model=ResponseModel)
-async def generate(request: RequestModel) :
-    """Entry point for docs2docs api"""
-    package_name = request.package_name
-    if not package_name:
-        package_name = derive_package_name(request.url)
+async def generate(request: RequestModel):
+    global pipeline_running
+    if pipeline_running:
+        raise HTTPException(
+            status_code=429,
+            detail="A pipeline run is already in progress. Please wait."
+        )
+    pipeline_running = True
     try:
+        package_name = request.package_name or derive_package_name(request.url)
         presigned_url = await run_pipeline(url=request.url, package_name=package_name)
         return ResponseModel(
             status="200",
@@ -84,15 +90,11 @@ async def generate(request: RequestModel) :
             download_url=presigned_url
         )
     except ValueError as e:
-        raise HTTPException(
-            status_code=422,
-            detail= str(e)
-        )
+        raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        pipeline_running = False
 
 
 if __name__ == "__main__":

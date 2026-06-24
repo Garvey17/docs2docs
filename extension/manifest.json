@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Docs to Docs",
+  "version": "1.0.0",
+  "description": "Convert any documentation site into a downloadable guide",
+  "permissions": [
+    "activeTab",
+    "notifications",
+    "downloads"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Docs to Docs",
+     "default_icon": {
+      "16": "icon.png",
+      "48": "icon.png",
+      "128": "icon.png"
+    }
+  },
+  "icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}
